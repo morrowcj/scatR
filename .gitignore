@@ -1,6 +1,6 @@
 .Rproj.user
 *.Rproj
 
-# non-package documents
+# non-code documents
 documents/
-original_code/
+
