@@ -1,0 +1,6 @@
+^scatR\.Rproj$
+^\.Rproj\.user$
+
+# non-package documents
+documents/
+original_code/
