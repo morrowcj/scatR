@@ -28,7 +28,6 @@ food_varcov = matrix(data = c(1.0,  0.5,  0.2,
                      ncol = 3, dimnames = list(food_items, food_items))
 
 
-
 # ---- Baseline Population Consumption ----
 # Generate random population baseline consumption (Multivariate-normal) from the covariance matrix
 pop_consumption = mvtnorm::rmvnorm(n=pop_size, mean=consume_means, sigma=food_varcov)
@@ -123,7 +122,7 @@ cons_prop_avg = apply(consumption_array, 3, function(x)1 - mean(is.na(x)))
 
 # Average population quantitative consumption across time
 item_pop_avg = apply(consumption_array, 3, function(x)mean(x, na.rm=TRUE))
-(pop_avg_table = data.frame(true = food_means, observed = round(item_pop_avg, 2)) %>% mutate(diff = observed - true))
+(pop_avg_table = data.frame(true = consume_means, observed = round(item_pop_avg, 2)) %>% mutate(diff = observed - true))
 
 # Population varcovariance across time (if possible)
 consumption_permute = aperm(consumption_array, c(1, 3, 2)) # rearrange the array
