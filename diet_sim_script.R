@@ -1,5 +1,8 @@
 library(ggplot2)
+library(lemon)
 library(dplyr)
+
+theme_set(theme_classic())
 
 set.seed(888)
 
@@ -132,3 +135,37 @@ for (t in seq_len(time_points)){
   cov_list[[name]] = round(cor(consumption_permute[, , t], use = "na.or.complete"), 2) # add to covariance list
 }
 cov_list
+
+
+## ---- Visualize population ----
+
+diet_df = reshape2::melt(consumption_permute, varnames = c("individual", "item", "time"), value.name = "consumption")
+
+diet_df %>% ggplot() +
+  geom_line(aes(x = time, y = consumption, group = individual), show.legend = FALSE) +
+  facet_grid(item~.)
+
+diet_df %>% ggplot() +
+  stat_summary(aes(x = item, y = consumption))
+
+# and a subset of individuals
+
+ind_subset <- sample(individual_id, 20)
+
+diet_subset = diet_df %>% filter(individual %in% ind_subset)
+
+# cunsumption through time
+diet_subset %>% ggplot() +
+  geom_line(aes(x = time, y = consumption, group = individual, col = individual), show.legend = FALSE) +
+  facet_grid(item~.) +
+  scale_color_viridis_c(option = "plasma", end = .7)
+
+# consumption over full time period
+diet_subset %>% ggplot() +
+  geom_hline(yintercept = 0, linetype = "dashed", col = "black") +
+  stat_summary(fun.data = mean_se, aes(x = item, y = consumption, fill = item), geom = "bar") +
+  stat_summary(fun.data = mean_se, aes(x = item, y = consumption)) +
+  facet_rep_wrap(~individual) +
+  theme(strip.background = element_blank(), strip.placement = "inside") +
+  labs(y = "Consumption", x = "Diet Item", col = "Diet Item")
+
