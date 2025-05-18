@@ -173,3 +173,124 @@ consume_diet <- function(
     stop("length of target must equal 1 or the value of samples")
   }
 }
+
+# ---- Function to creat an example scat sample table ----
+
+example_scat_samples <- function(
+    strats, 
+    pop_size = 1000, samples = 100, recap_rate = c(0.2, 0.5), target = 100
+  ){
+  # calculate the number of individuals, recaptures, and re-recaptures
+  n_recaps <- round(samples*recap_rate[1])
+  n_rerecaps <- round(n_recaps * recap_rate[2])
+  n_individuals <- samples - (n_recaps + n_rerecaps)
+  
+  
+  # sample the full population and assign individual IDs
+  iid <- sample(samples, size = n_individuals)
+  # subsample individuals that will be recaptured
+  recaps <- sample(iid, size = n_recaps)
+  rerecaps <- sample(recaps, size = n_rerecaps)
+
+  # calculate the number of different groups
+  n_groups = nrow(strats)
+  
+  # assign individuals to the different groups
+  groups <- sample(n_groups, n_individuals, replace = TRUE)
+  # match groups to recaps
+  recap_groups <- groups[match(recaps, iid)]
+  rerecap_groups <- groups[match(rerecaps, iid)]
+  
+  
+  df <- tibble(
+    iid = c(iid, recaps, rerecaps), 
+    group = c(groups, recap_groups, rerecap_groups),
+    capture = c(rep(1, n_individuals), rep(2, n_recaps), rep(3, n_rerecaps))
+  ) |> arrange(group, iid, capture)
+  
+  results <- tibble()
+  for (i in seq_len(nrow(df))) {
+    df_row = df[i, ]
+    strat = unlist(strats[df_row$group, ])
+    cons <- consume_diet(
+      available = strat, target = target, prop = TRUE, .other = "other"
+    ) |> t() |> data.frame() |> tibble() 
+    
+    # stack results
+    results <- results |> bind_rows(cons)
+  }
+    
+  observed_average <- colMeans(results, na.rm = TRUE)
+  
+  if ("other" %in% names(results)) {
+    results <- results |> mutate(other = replace_na(other, 0))
+  }
+  
+  # join the results with the ID cols.
+  df <- bind_cols(df, results)
+  
+  # return the results (shuffled rows)
+  return(
+    df |> arrange(sample(samples))
+  )
+}
+
+# ---- Example 1 ---- 
+
+set.seed(97)
+
+# create a table of 4 different "strategies" that the population will have
+strategies <- tribble(
+  ~A, ~B, ~C,
+  1/3, 1/3, 1/3,  # equal probability of consuming each resource
+  0.5, 0.3, 0.2, # decreasing consumption probability
+  0.495, 0.495, 0.01, # one rarely consumed resource
+  0.01, 0.05, 0.05 # only rarely consumed items (compensate with an extra)
+) |> tibble()
+
+# generate the data
+scats_df <- example_scat_samples(strats = strategies, target = 100)
+
+# proportion of scat comprised of a food item.
+scats <- scats_df |> select(-c(iid:capture))
+
+# observed average proportion of each food item in scat
+colMeans(scats)
+
+# observed averages for each group
+scats_df |> group_by(group) |> summarize(across(A:other, ~mean(.x)))
+                                         
+
+# indicator matrix for whether the food item was observed in scat
+scats_bin <- scats |> mutate(across(everything(), ~as.numeric(.x > 0)))
+
+# observed proportion of scat samples in which the items were detected
+colMeans(scats_bin)
+
+# observed proportion of samples containing each item within groups
+scats_df |> group_by(group) |> summarize(across(A:other, ~mean(.x > 0)))
+
+
+## TODO: create a function that applies the scat analysis method on 
+## `scats` and/or `scats_bin`. Note that the function should be able to handle
+## any number of rows and columns. The next example creates results for 10 food
+## items.
+
+# ---- Example 2 ----
+# generate consumption probabilities for 10 items
+weights = c(2, 1, 1, 1, 0.5, 0.5, 0.2, 0.2, 0.1, 0.01)
+probs = weights / sum(weights)
+prob_tab <- t(tibble(probs))
+colnames(prob_tab) <- paste("item", 1:10, sep = ".")
+
+scat_samples <- example_scat_samples(prob_tab, target = 10)
+
+scats2 <- scat_samples |> select(-c(iid:capture))
+
+# average observed proportions (vs expected)
+colMeans(scats2) |> 
+  unlist() %>% cbind(expected = probs, observed = .) |> 
+  round(digits = 3)
+
+# proportions of samples in which eat item was found
+scats2 |> summarize(across(everything(), ~mean(.x > 0)))
