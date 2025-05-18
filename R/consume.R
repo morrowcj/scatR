@@ -176,6 +176,21 @@ consume_diet <- function(
 
 # ---- Function to creat an example scat sample table ----
 
+#' Title
+#'
+#' @param strats a table of probabilities for each item (cols) by group (rows)
+#' @param pop_size the size of the total population
+#' @param samples the size of the samples drawn from the population
+#' @param recap_rate a length-2 vector whose elements are 1) the proportion of 
+#' the sample that will be captured a second time and 2) the proportion of
+#' recaptures that will be captured a third time.
+#' @param target passed as the \code{target} argument in \code{consume_diet()}.
+#'
+#' @returns a data frame with individual ID, group the individual belongs to,
+#' the capture number for the individual, and proportions of each food item
+#' consumed.
+#' 
+#' @examples
 example_scat_samples <- function(
     strats, 
     pop_size = 1000, samples = 100, recap_rate = c(0.2, 0.5), target = 100
@@ -280,11 +295,15 @@ scats_df |> group_by(group) |> summarize(across(A:other, ~mean(.x > 0)))
 # generate consumption probabilities for 10 items
 weights = c(2, 1, 1, 1, 0.5, 0.5, 0.2, 0.2, 0.1, 0.01)
 probs = weights / sum(weights)
+# put them in a table (by row)
 prob_tab <- t(tibble(probs))
+# name the food items
 colnames(prob_tab) <- paste("item", 1:10, sep = ".")
 
+# generate the sample
 scat_samples <- example_scat_samples(prob_tab, target = 10)
 
+# remove ID columns
 scats2 <- scat_samples |> select(-c(iid:capture))
 
 # average observed proportions (vs expected)
